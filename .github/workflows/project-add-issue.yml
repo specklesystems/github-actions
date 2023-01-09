@@ -12,7 +12,7 @@ on:
         default: 11
         description: The project number where the issue should be updated
       issue-id:
-        type: number
+        type: string
         required: true
     secrets:
       GHPROJECT_TOKEN:
