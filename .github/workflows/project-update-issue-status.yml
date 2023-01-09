@@ -11,9 +11,13 @@ on:
         type: number
         default: 11
         description: The project number where the issue should be updated
+      issue-id:
+        type: string
+        required: true
     secrets:
       GHPROJECT_TOKEN:
         required: true
+
 env:
   GITHUB_TOKEN: ${{ secrets.GHPROJECT_TOKEN }}
 
@@ -57,7 +61,7 @@ jobs:
                   id
                 }
               }
-            }' -f project=$PROJECT_ID -f id=$ISSUE_ID --jq '.data.addProjectNextItem.projectNextItem.id')"
+            }' -f project=$PROJECT_ID -f id=${{ inputs.issue-id }} --jq '.data.addProjectNextItem.projectNextItem.id')"
 
           echo 'ITEM_ID='$item_id >> $GITHUB_ENV
 
