@@ -22,14 +22,15 @@ on:
         type: string
         value: ${{ steps.add-issue.outputs.ITEM_ID }}
 
+env:
+  GITHUB_TOKEN: ${{ secrets.GHPROJECT_TOKEN }}
+  ISSUE_ID: ${{ github.event.issue.node_id }}
+
 jobs:
   track_issue:
     runs-on: ubuntu-latest
     steps:
       - name: Get project data
-        env:
-          GITHUB_TOKEN: ${{secrets.GHPROJECT_TOKEN}}
-          ORGANIZATION: specklesystems
         run: |
           gh api graphql --header 'GraphQL-Features: projects_next_graphql' -f query='
             query($org: String!, $number: Int!) {
@@ -52,8 +53,6 @@ jobs:
 
       - id: add-issue
         name: Add Issue to project
-        env:
-          GITHUB_TOKEN: ${{secrets.GHPROJECT_TOKEN}}
         run: |
           item_id="$( gh api graphql --header 'GraphQL-Features: projects_next_graphql' -f query='
             mutation($project:ID!, $id:ID!) {
@@ -62,6 +61,6 @@ jobs:
                   id
                 }
               }
-            }' -f project=${{ inputs.project-number }} -f id=${{ inputs.issue-id }} --jq '.data.addProjectNextItem.projectNextItem.id')"
+            }' -f project=$PROJECT_ID -f id=$ISSUE_ID--jq '.data.addProjectNextItem.projectNextItem.id')"
 
           echo 'ITEM_ID='$item_id >> $GITHUB_OUTPUT
