@@ -16,7 +16,6 @@ on:
         required: true
 env:
   GITHUB_TOKEN: ${{ secrets.GHPROJECT_TOKEN }}
-  ISSUE_ID: ${{ github.event.issue.node_id }}
 
 jobs:
   update_issue:
