@@ -19,7 +19,6 @@ on:
         required: true
     outputs:
       item-id:
-        type: string
         value: ${{ steps.add-issue.outputs.ITEM_ID }}
 
 env:
