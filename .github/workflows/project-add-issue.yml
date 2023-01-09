@@ -1,4 +1,4 @@
-name: Move new issues into Project
+name: Move new issue into Project
 
 on:
   workflow_call:
@@ -26,6 +26,7 @@ env:
 
 jobs:
   track_issue:
+    name: Track Issue
     runs-on: ubuntu-latest
     steps:
       - name: Get project data
