@@ -14,6 +14,9 @@ on:
       issue-id:
         type: string
         required: true
+      status-name:
+        type: string
+        default: "Closed"
     secrets:
       GHPROJECT_TOKEN:
         required: true
@@ -28,48 +31,48 @@ jobs:
       - name: Get project data
         run: |
           gh api graphql --header 'GraphQL-Features: projects_next_graphql' -f query='
-            query($org: String!, $number: Int!) {
-              organization(login: $org){
-                projectNext(number: $number) {
+            query ($org: String!, $number: Int!) {
+              organization(login: $org) {
+                projectV2(number: $number) {
                   id
-                  fields(first:20) {
-                    nodes {
+                  title
+                  field(name: "Status") {
+                    ... on ProjectV2SingleSelectField {
                       id
-                      name
-                      settings
+                      options {
+                        id
+                        name
+                      }
                     }
                   }
                 }
               }
             }' -f org=${{ inputs.github-org }} -F number=${{ inputs.project-number }} > project_data.json
 
-          echo 'PROJECT_ID='$(jq '.data.organization.projectNext.id' project_data.json) >> $GITHUB_ENV
-          echo 'STATUS_FIELD_ID='$(jq '.data.organization.projectNext.fields.nodes[] | select(.name== "Status") | .id' project_data.json) >> $GITHUB_ENV
+          echo 'PROJECT_ID='$(jq '.data.organization.projectV2.id' project_data.json) >> $GITHUB_ENV
+          echo 'STATUS_FIELD_ID='$(jq '.data.organization.projectV2.field.id' project_data.json) >> $GITHUB_ENV
 
-          echo "$PROJECT_ID"
-          echo "$STATUS_FIELD_ID"
+          echo 'DONE_ID='$(jq '.data.organization.projectV2.field.options[] | select(.name== ${{ inputs.status-name }}) | .id' project_data.json) >> $GITHUB_ENV
 
-          echo 'DONE_ID='$(jq '.data.organization.projectNext.fields.nodes[] | select(.name== "Status") | .settings | fromjson | .options[] | select(.name== "Done") | .id' project_data.json) >> $GITHUB_ENV
-          echo "$DONE_ID"
-
-      - name: Add Issue to project #it's already in the project, but we do this to get its node id!
+      - id: add-issue
+        name: Add Issue to project
         run: |
-          item_id="$( gh api graphql --header 'GraphQL-Features: projects_next_graphql' -f query='
-            mutation($project:ID!, $id:ID!) {
-              addProjectNextItem(input: {projectId: $project, contentId: $id}) {
-                projectNextItem {
+          item_id="$( gh api graphql -f query='
+            mutation ($project: ID!, $id: ID!) {
+              addProjectV2ItemById(input: {projectId: $project, contentId: $id}){
+                item {
                   id
                 }
               }
-            }' -f project=$PROJECT_ID -f id=${{ inputs.issue-id }} --jq '.data.addProjectNextItem.projectNextItem.id')"
+            }' -f project=$PROJECT_ID -f id=${{ inputs.issue-id }} --jq '.data.addProjectV2ItemById.item.id')"
 
-          echo 'ITEM_ID='$item_id >> $GITHUB_ENV
+          echo 'ITEM_ID='$item_id >> $GITHUB_OUTPUT
 
       - name: Update Status
         run: |
-          gh api graphql --header 'GraphQL-Features: projects_next_graphql' -f query='
-            mutation($project:ID!, $status:ID!, $id:ID!, $value:String!) {
-              set_status: updateProjectNextItemField(
+          gh api graphql --header 'GraphQL-Features: projects_next_graphql' 
+            -f query='mutation($project:ID!, $status:ID!, $id:ID!, $value:String!) {
+              updateProjectV2ItemFieldValue(
                 input: {
                   projectId: $project
                   itemId: $id
@@ -77,8 +80,12 @@ jobs:
                   value: $value
                 }
               ) {
-                projectNextItem {
+                projectV2Item {
                   id
                 }
               }
-            }' -f project=$PROJECT_ID -f status=$STATUS_FIELD_ID -f id=$ITEM_ID -f value=${{ env.DONE_ID }}
+            }' 
+            -f project=$PROJECT_ID
+            -f status=$STATUS_FIELD_ID
+            -f id=${{ steps.add-issue.outputs.ITEM_ID }}
+            -f value=$DONE_ID
