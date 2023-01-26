@@ -31,36 +31,28 @@ jobs:
     steps:
       - name: Get project data
         run: |
-          gh api graphql --header 'GraphQL-Features: projects_next_graphql' -f query='
-            query($org: String!, $number: Int!) {
-              organization(login: $org){
-                projectNext(number: $number) {
+          gh api graphql -f query='
+            query ($org: String!, $number: Int!) {
+              organization(login: $org) {
+                projectV2(number: $number) {
                   id
-                  fields(first:20) {
-                    nodes {
-                      id
-                      name
-                      settings
-                    }
-                  }
                 }
               }
             }' -f org=${{ inputs.github-org }} -F number=${{ inputs.project-number }} > project_data.json
 
-          echo 'PROJECT_ID='$(jq '.data.organization.projectNext.id' project_data.json) >> $GITHUB_ENV
-          echo 'STATUS_FIELD_ID='$(jq '.data.organization.projectNext.fields.nodes[] | select(.name== "Status") | .id' project_data.json) >> $GITHUB_ENV
+          echo 'PROJECT_ID='$(jq '.data.organization.projectV2.id' project_data.json) >> $GITHUB_ENV
 
       - id: add-issue
         name: Add Issue to project
         run: |
-          item_id="$( gh api graphql --header 'GraphQL-Features: projects_next_graphql' -f query='
-            mutation($project:ID!, $id:ID!) {
-              addProjectNextItem(input: {projectId: $project, contentId: $id}) {
-                projectNextItem {
+          item_id="$( gh api graphql -f query='
+            mutation ($project: ID!, $id: ID!) {
+              addProjectV2ItemById(input: {projectId: $project, contentId: $id}){
+                item {
                   id
                 }
               }
-            }' -f project=$PROJECT_ID -f id=${{ inputs.issue-id }} --jq '.data.addProjectNextItem.projectNextItem.id')"
+            }' -f project=$PROJECT_ID -f id=${{ inputs.issue-id }} --jq '.data.addProjectV2ItemById.item.id')"
 
           echo 'ITEM_ID='$item_id >> $GITHUB_OUTPUT
     outputs:
